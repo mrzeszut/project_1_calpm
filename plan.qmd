@@ -1,0 +1,361 @@
+---
+title: "Plan zajęć i wytyczne"
+author: "Mateusz Rzeszutek"
+date: today
+format:
+  html:
+    self-contained: true
+    toc: true
+    toc-depth: 4
+    toc-location: right
+    toc-title: "Spis treści"
+    number-sections: true
+    number-depth: 4
+    code-fold: show
+    code-summary: "Show the code"
+    code-tools: true
+    code-block-bg: true
+    code-block-border-left: "black"
+    code-line-numbers: false
+    code-copy: true
+    html-math-method: katex
+    smooth-scroll: true
+    anchor-sections: true
+    link-external-icon: true
+    link-external-newwindow: true
+    theme:
+        light: cosmo
+        dark: darkly
+    fontsize: 1.0em
+    linestretch: 1.5
+execute:
+  warning: false
+  echo: true
+  error: false
+  fig-aling: center
+editor_options: 
+  chunk_output_type: console
+---
+
+<div style="text-align: justify">
+
+***
+
+## Pakiety
+
+```{r}
+#| results: hide
+library(tidyverse)
+library(openair)
+```
+
+## Cel Projektu
+
+Opracowanie modelu kalibracji stężeń PM~10~ w powietrzu na podstawie pomiarów liczby cząstek stałych i danych meteorologicznych przy zastosowaniu wybranych metod uczenia maszynowego. 
+
+## Cel dydaktyczny
+
+W ramach tego projektu najważnijszym nie jest efekt końcowy w posatci uzyskania najlepszego algorytmu, ale odpowiednia organizacja pracy, podział obowiązków, zastosowanie nabytch unijętności z zakresu wykorzystania zdalnych repozytoriów i systemów kontroli wersji. Współuczestnictwo w realizacji projektu i wywiązywanie się z powieżonych obowiązków. Wielu sytuacjach nie będzie możliwe wykonywanie pracy równolegle.
+
+## Dane pomiarowe
+
+Dane o nazwie `ops_kras` zostały udostępnione w pliku `dane.RData`. 
+
+`ops` - zawiera wyniki pomiarów liczby cząstek w podziale na frkacje, warunków meteorologicznych oraz stężeń pyłów zawieszonych PM~10~, które zostały wykonane na stacji minitoringu jakosći powietrza przy. al. Kraśińskiego w Krakowie. 
+
+Podgląd danych:
+
+```{r}
+load("ops.RData") ; ops <- ops |> na.omit()
+```
+
+```{r}
+ops |> glimpse()
+```
+
+Zetaw danych skłąda się z 21 zmiennych oraz 859 oberwacji. Objaśnienia każdej zmiennej:
+
+  - `date` - Data (krok 1 - godzina)
+  - `grimm_pm10` - Średnie 1-godzinne stężenia PM~10~ zmierzone za pomocą GRIMM EDM 180
+  - `ops_pm10` - Średnie 1-godzinne stężenia PM~10~ zmierzone za pomocą TSI OPS 3330
+  - `n_0044` - liczba zliczeń cząstek w od 0.3 do 0.44 µm wyrażona w zliczeniach/cm^3^
+  - `n_0075` - liczba zliczeń cząstek w od 0.44 do 0.75 µm wyrażona w zliczeniach/cm^3^
+  - `n_0100` - liczba zliczeń cząstek w od 0.75 do 1.00 µm wyrażona w zliczeniach/cm^3^
+  - `n_0120` - liczba zliczeń cząstek w od 1.00 do 1.20 µm wyrażona w zliczeniach/cm^3^
+  - `n_0140` - liczba zliczeń cząstek w od 1.20 do 1.40 µm wyrażona w zliczeniach/cm^3^
+  - `n_0200` - liczba zliczeń cząstek w od 1.40 do 2.00 µm wyrażona w zliczeniach/cm^3^
+  - `n_0250` - liczba zliczeń cząstek w od 2.00 do 2.50 µm wyrażona w zliczeniach/cm^3^
+  - `n_0500` - liczba zliczeń cząstek w od 2.50 do 5.00 µm wyrażona w zliczeniach/cm^3^
+  - `n_0750` - liczba zliczeń cząstek w od 5.00 do 7.50 µm wyrażona w zliczeniach/cm^3^
+  - `n_1000` - liczba zliczeń cząstek w od 7.50 do 10.4 µm wyrażona w zliczeniach/cm^3^
+  - `temp` - temperatura powietrza [°C]
+  - `rh` - wilgotność względna [%]
+  - `pres` - ćiśnienie na poziomie stacji [hPa]
+  - `pres_sea` - ciśnienie nad poziomem morza [hPa]
+  - `wd` - kierunke wiatru [°]
+  - `mws` - maksymlan prędkość wiatru [m/s]
+  - `ws` - prędkość wiatru [m/s]
+  - `prec` - opad atmosferyczny [mm/h]
+
+## Dane weryfikacyjne
+
+Zestaw drugi tzw. weryfikacyjny zawiera analogiczne informacje stosunku do zestawu danych `ops`, ale pomairy zostały wykonane w innym czasie i miejscu. Ponadto zastosowano inną metodę referencyjną pomiaru stężeń PM~10~ tj. BAM 1020 Met One Instruments zamiast GRIMM EDM 180.
+
+```{r}
+load("data_test.rdata")
+```
+
+Powyższe polecenie wczytało dwa zestawy danych 1 to `ops_data`, a drugi to `bam`. 
+Pierwszy zawiera dane analogiczne do zestawu `ops`, a drugi zawiera wyniki pomiarów stężeń przy zastosowaniu BAM 1020. Dane łaczymy po dacie pomiaru. Dane przygotowane są w tej samej jednorodnje strefie czasowej.
+
+Zestaw danych `ops` zawiera kilka dodatkowych zmiennych utworzonych na różnych etpach projektu. Proszę się im przyjrzeć, mogą być istotną wskazówką na etapie opracowania najlepszego modelu.
+
+Ten zestaw danych należy wykorzystać w celu sprawdzenia, czy opracowany algorymt kalibracji jest odporny na zmianę lokalizacji wykonywania pomiarów? Proponuje przetestować kilka algorytmów opracowany przy zastosowaniu róznych metod.
+
+
+
+## Przyjrzyjmy się danym i zrozumy problem
+
+Porównanie wyników pomiarów stężeń PM~10~ wykonany przy zastosowaniu dwóch podobnych automatycznych metod pomiarowych:
+
+  - **TSI OPS 3330** - metoda optyczna nie uznawana za równoważną do referencyjnej
+  - **GRIMM EDM180** - metoda optyczna równoważna do referencyjnej (kalibrowana na podstawie danych referencyjnych w lokalizacji wykonywania pomiarów)
+
+```{r}
+ops |> na.omit() |> 
+  ggplot(mapping = aes(x = grimm_pm10, 
+                       y = ops_pm10)) + 
+  geom_point(shape = 16, alpha = 0.3) +
+  geom_abline(slope = c(0.5, 2, 1), 
+              col = c( "blue4", "blue4", "red4"), size = 0.8) +
+  geom_smooth(method = lm, color = "green4") +
+  theme_bw() +
+  scale_x_continuous(expand = c(0,0), limits = c(0, 101)) +
+  scale_y_continuous(expand = c(0,0), limits = c(0, 101)) + 
+  labs(title = "Porównanie metod pomiarowych stężeń PM10", 
+       y = "TSI OPS 3330", 
+       x = "GRIMM EDM 180") +
+  coord_equal()
+```
+
+Zaobserwowano, że dane z OPS są mocno niedoszacowane względem metody równoważnej do referencyjnej (około 2 krotnie).  
+
+```{r}
+ops |> 
+  modStats(mod = "ops_pm10", obs = "grimm_pm10", type = "weekday") |> 
+  mutate(across(
+    FAC2:IOA, ~ round(.x, 2)
+  )) |> select(-P) |> 
+  DT::datatable()
+```
+
+Wartości statystyk potwierdzają ogólną stroniczość OPS do niedoszacowania wyników pomiarów stężeń PM~10~. 
+
+Prawdopodobnie opracowanie modelu regresji liniowej w celu kalibracji danych z TSI OPS 3330 umożliwii redukcję stronniczości (Patrz wysokie wartości korelacji). Zaobserowwono jednak, że w stosunku do linii regresji uzysken wyniki charkteryzują się dużym rozrzutem w stosnku do modelu regresji liniowej prostej. Potwierdzają to wartości RMSE są wysokie (około 50%  wartości sredniej),  COE i IOA są dalekie od 1. Oznacza to, że regresja liniowa prosta prawdopodobnie pozwoli na redukcję przesunięcia, ale najprawdopodobiej nie bedzie wstanie zniwelować rozrzutu wyników, ponieważ zależy ona od innych czynników.
+
+## Spodziewany efekt 
+
+Ponizej zamieszczono graficzne przedstawienie uzyskanych wyników dla zbioru weryfikacyjnego.
+
+```{r}
+#| echo: false
+#| results: hide
+
+load("data_test.rdata")
+load("best_models_002.rdata")
+load("best_models_pca.rdata")
+```
+
+```{r}
+#| echo: false
+#| results: hide
+
+select_models1 <- 
+c("c4_Cubist",
+  "cf_Cubist",
+  "m3_Cubist",
+  'm2_SVM_radial',
+  "b_RF",
+  "c1_RF",
+  "m2_Boosting",
+  "b_CART_bagged")
+
+select_models2 <- 
+  c("ica_cubist_2", 
+    "pca_cubist_2", 
+    "pca_cubist_5", 
+    "pls_cubist_2", 
+    "ica_rf_2", 
+    'pca_rf_2',
+    "pca_rf_3",
+    "pca_rf_4",
+    "pca_rf_5",
+    "pca_rf_6",
+    "pls_rf_2",
+    "pls_rf_3",
+    "pls_rf_5")
+
+pdp_pred_fun <- function(object, newdata) {
+  
+  pred <- predict(object, newdata, type = "numeric")$.pred
+  
+  pred <- bind_cols(newdata, .pred = pred)
+  
+  return(pred)
+}
+
+library(tidymodels)
+tidymodels_prefer()
+
+out_test1 <-
+  select_models1 %>%
+  map_dfr(
+    ~ pdp_pred_fun(object = best_models[[.x]]$.workflow[[1]],
+                   newdata = ops_data) %>% 
+      mutate(.mod = .x)
+  )
+
+out_test2 <-
+  select_models2 %>%
+  map_dfr(
+    ~ pdp_pred_fun(object = best_models_pca[[.x]]$.workflow[[1]],
+                   newdata = ops_data) %>% 
+      mutate(.mod = .x)
+  )
+
+out_test <- bind_rows(out_test1, out_test2)
+
+out_test <- left_join(out_test, bam, by = "date")
+```
+
+Porównanie uzyskanych wyników przy zastosowaniu różnych metod usrednia charakterystycznych dla specyfiki danych. Można zaobserwować, że zastosowany algorytm jest znacznie lepszy w stosunku do kalibracji labolatoryjne TSI OPS 3330 w innej lokalizacji i czasie. Wskazuje to, że jest od odporny na zmianę lokalizacji pomiarów. Nie jest wolny od wad, ponieważ na wykresie rozrzutu można zaobserwować ogólne przeszacowanie uzyskanych wyników kalibracji w stosunku do danych pomiarowych dla wartości stężeń większych niż 30 µg/m^3^   
+
+**Sukces !!!**
+
+```{r}
+#| echo: false
+
+left_join(
+  out_test %>%
+    filter(.mod == "cf_Cubist") %>%
+    select(date, .pred, bam_pm10) %>%
+    na.omit(),
+  ops_bam %>% select(date, ops_pm10),
+  by = "date"
+) %>%
+  select(date, bam_pm10, ops_pm10, .pred) %>%
+  rename('Calibration algorithm' = .pred,
+         'Correction factor' = ops_pm10, BAM = bam_pm10) %>% 
+  pivot_longer(BAM:'Calibration algorithm') -> to_p  
+
+Sys.setlocale("LC_ALL","English")
+
+to_p %>%
+  timeVariation(pollutant = "value",
+                group = "name", 
+                ylab ="Concentration PM10 [ug/m3]") -> p 
+```
+
+```{r}
+#| echo: false
+#| results: hide
+
+Sys.setlocale("LC_ALL","Polisch")
+```
+
+Wykresy rozrzutu:
+
+```{r}
+#| echo: false
+
+left_join(
+  out_test %>%
+    filter(.mod == "cf_Cubist") %>%
+    select(date, .pred, bam_pm10) %>%
+    na.omit(),
+  ops_bam %>% select(date, ops_pm10),
+  by = "date"
+) %>%
+  select(date, bam_pm10, ops_pm10, .pred) %>%
+  rename('Calibration algorithm' = .pred,
+         'Correction factor' = ops_pm10) %>%
+  pivot_longer('Correction factor':'Calibration algorithm') -> to_p
+
+to_p %>% 
+  timeAverage(avg.time = "day", 
+              type = "name") %>% 
+  filter(value < 150) %>% 
+  ggplot(aes(bam_pm10, value)) +
+  geom_point() +
+  facet_wrap(~name) + 
+  geom_abline(slope = c(1.5, 0.5, 1),
+              col = rep(c("blue", "blue",
+                          "red"),
+                        2)) +
+  theme_bw() +
+  scale_x_continuous(limits = c(0,60), expand = c(0,0)) + 
+  scale_y_continuous(limits = c(0,60), expand = c(0,0)) +
+  coord_obs_pred() +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(
+    x =  expression("Concentration PM"[10] *
+                      " [" * mu * "g m" ^ -3 * "] - BAM-1020") ,
+    y = expression("Concentration PM"[10] *
+                     " [" * mu * "g m" ^ -3 * "] - OPS 3330")
+  ) -> p ; p
+```
+
+
+## Przebieg zajęć
+
+1) Omówienie celu projektu 
+2) Przedstawienie danych 
+3) Podział studentów na zespoły i wybór lidera (4 osobowe)
+4) Utworzenie repozytorium projektu na Github i udostępnienie repozyroium prowadzącemu 
+5) Opracowanie mapy myślowej projektu
+6) Uzgodnienie podziału obowiązków w grupach przez studentów na podstawie mapy myślwoej projektu
+7) Wskazówki prowadzacego zakresy wykorzystania funkcjonalnosci Github [dokumentacja](https://docs.github.com/en/issues/guides):
+    - Problemy  
+    - lista zadań
+    - Etykiety
+
+7) Dyskusja dotyczaca wyboru predyktorów i ich redukcji względem wyników badań masy poszczególnych frakcji (dodatkowe dane w postaci arkusza, zamieszczone w projekcie) i wspóliniowości (poziom pierwszy) oraz przy zastosowaniu kilku metod redukcji wymiarów (poziom drugi).
+
+8) Omówienie metody przesiewowej wyboru najlepszej metody estymacji modelu (samodzielne wdrożenie przez studentów na podstawie źródła: [rozdział 15](https://www.tmwr.org/workflow-sets))
+
+9) Dyskusja dotyczącą wyboru najlepszych modeli na podstawie wstępnych wyników. Eksploracyjna analiza modelu ([EMA](https://ema.drwhy.ai/)) .
+
+## Projekt ML (w skrócie)
+
+1) Przygotowanie danych i ekspolaracyjna analizy danych
+2) Opracowanie modeli kalibracji 
+3) Ocena modeli 
+4) Prezentacja z podsumowaniem 
+
+## Mapa Myślowa Projektu w kontekscie zdalnych repozytoriów
+
+Przygotować diagram:
+  - [W quarto](https://quarto.org/docs/authoring/diagrams.html) 
+  - [live editor](https://mermaid.live/edit)
+  - [Dokumentacja](https://mermaid.js.org/intro/getting-started.html)
+
+Przykład problemu: Jak rozwiązań problem wykonywania każdorazowego uruchamiania procesu obliczeniowego estymacji modelu w trakcie generowania pliku dla komunikacji za pomocą quarto. 
+
+## Oddanie projektu
+
+Po każdych zajęciach prowadący będzie przekazywał etapy projektu, ktore powinny zostać wykonane na nastepne zajęcia. 
+
+W ustalony przez prowadzacego terminie następuje oddanie projektu w postaci prezentacji.
+
+Prezentacj powinna: 
+
+Opis dosiadczeń i napotaknych problemów w ramach współpracy grupowej napotkanje przy realizacji prejektu z wykrozystaniem zdalnych repozytoriów i systemów kontorli wersji.
+
+Samoocena poszczególnych członków zepsołu.
+
+Udostępnie prowądząceme wglądu do projektu utworzonego w zdalnym repozytorium w celu przglądnięcia:
+
+* problmeów, list zadań, etykiet 
+* Historii zatwiedzeń.
+
+Przedstawienie w spójny sposób założeń przyjętych w projekcie ML oraz uzyskanych wyników. 

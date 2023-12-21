@@ -1,0 +1,191 @@
+---
+title: "example_level_1"
+author: "Mateusz Rzeszutek"
+abstract-title: "Streszczenie"
+abstract: "Krótki kurs, który ma na celu wprowadzenie cię do świata uczenia maszynowego przy zastosowaniu nowoczesnych i efektywnych narzędzi programowania *Tidymodels*"
+format: 
+  html:
+    self-contained: true
+    toc: true
+    toc-depth: 4
+    toc-location: right
+    toc-title: "Spis treści"
+    number-sections: true
+    number-depth: 4
+    code-fold: show
+    code-summary: "Show the code"
+    code-tools: true
+    code-block-bg: true
+    code-block-border-left: "black"
+    code-line-numbers: false
+    code-copy: true
+    html-math-method: katex
+    smooth-scroll: true
+    anchor-sections: true
+    link-external-icon: true
+    link-external-newwindow: true
+    theme:
+        light: cosmo
+        dark: darkly
+    fontsize: 1.0em
+    linestretch: 1.5
+execute:
+  warning: false
+  echo: true
+  error: false
+editor_options: 
+  chunk_output_type: console
+---
+
+***
+
+## Pakiety 
+
+```{r}
+#| echo: true
+#| results: hide
+library(tidyverse)
+library(tidymodels)
+library(openair)
+# library(stringr)
+# library(vip)
+# library(pdp)
+# library(DALEX)
+# library(DALEXtra)
+# library(bestNormalize)
+# library(rules)
+# library(baguette)
+tidymodels_prefer()
+```
+
+
+## Wczytanie danych
+
+***
+
+### Dane pomiarowe z Krasińskiego 
+
+```{r}
+# Wczytanie danych z pliku
+
+ops <- read.csv(file = "Dane_OPS.csv") |> as_tibble()
+
+# Format daty, wymaga zmiany ustawień systemowych 
+
+colnames(ops)[1] <- "date"
+
+Sys.setlocale("LC_ALL","English") # Sys.setlocale("LC_ALL","Polish")
+
+ops <- ops |> 
+  mutate(date = as.POSIXct(date, format = "%d-%b-%Y %H:%M:%S", tz = "GMT"))
+
+# Nazwy kolumn
+
+ops <- ops |> dplyr::select(-c(12:17, 29:34))
+colnames(ops) <-  tolower(colnames(ops))
+
+colnames(ops)[2:23] <- paste0(substr(colnames(ops)[2:23], start = 2, stop = 3),
+                              substr(colnames(ops)[2:23], start = 9, stop = 12))
+
+# Przesunięcie daty danych wios, meteo bez zmian
+# Jest różnica jednej godziny
+
+ops <- inner_join(ops |> 
+                    _[,1:34], 
+                  ops |> 
+                    _[,c(1, 35:44)] |> 
+                    mutate(date = date - 3600), by = "date")
+
+# Zieniamy nazwy kolumn na krótkie 
+  
+colnames(ops)[27:34] <- c("temp", "rh", "pres" , "pres_sea", 
+                          "wd", "mws", "ws", "prec")
+
+# usuwamy puste zmienne 
+
+ops <- ops |> dplyr::select(-m_x, - n_x)
+```
+
+Obliczmy stężenia na podstaiwe pomiarów cząstkowych.
+
+```{r}
+ops <- ops %>% 
+  mutate(ops_pm25 = m_0044+m_0075+m_0100+m_0120+m_0140+m_0200+m_0250) %>% 
+  rename(ops_pm10 = dm_t) 
+
+ops <- ops %>% 
+  mutate(ops_n_pm25 = n_0044+n_0075+n_0100+n_0120+n_0140+n_0200+n_0250) %>% 
+  rename(ops_n_pm10 = dn_t) 
+
+ops <- ops %>% 
+  rename(grimm_pm25 = pm25_krk_alkr, 
+         grimm_pm10 = pm10_krk_alkr)
+
+ops$date %>% range()
+
+ops <-
+  ops |> select(-(m_0044:m_1000),
+                -dc_t,
+                -(pm10_krk_buja:ops_n_pm25),
+                -ops_n_pm10)
+
+ops <- ops |> relocate(grimm_pm10, ops_pm10, .after = date)
+
+ops |> save(file = "ops.RData")
+```
+
+
+## Definicja problemu
+
+Porównanie wyników pomiarów stężeń wykonany za pomocą dwóch metod pomiarowych 
+
+TSI OPS 3330 - metoda optyczna nie uznawana za równoważną do referencyjnej
+GRIMM EDM180 - metoda optyczna równoważna do referencyjnej (kalibrowana na podstawie danych referencyjnych w lokalizacji wykonywania pomiarów)
+
+```{r}
+ops |> na.omit() |> 
+  ggplot(mapping = aes(x = grimm_pm10, 
+                       y = ops_pm10)) + 
+  geom_point(shape = 16, alpha = 0.3) +
+  geom_abline(slope = c(0.5, 2, 1), 
+              col = c( "blue4", "blue4", "red4"), size = 0.8) +
+  geom_smooth(method = lm, color = "green4") +
+  theme_bw() +
+  scale_x_continuous(expand = c(0,0), limits = c(0, 101)) +
+  scale_y_continuous(expand = c(0,0), limits = c(0, 101)) + 
+  labs(title = "Porównanie metod pomiarowych stężeń PM10", 
+       y = "TSI OPS 3330", 
+       x = "GRIMM EDM 180") +
+  coord_equal()
+```
+
+Zaobserwowano, że dane z OPS są mocno niedoszacowane względem metody równoważnej do referencyjnej (około 2 krotnie).  
+
+```{r}
+ops |> 
+  modStats(mod = "ops_pm10", obs = "grimm_pm10", type = "weekday") |> 
+  mutate(across(
+    FAC2:IOA, ~ round(.x, 2)
+  )) |> select(-P) |> 
+  DT::datatable()
+```
+
+Wartości statystyk potwierdzają ogólną stroniczość OPS do niedoszacowania wyników pomiarów stężeń PM~10~. 
+
+Prawdopodobnie dobrym zastosowaniem były by opracowanie modelu regresji liniowej w celu kalibracji danych z TSI OPS 3330. Świadczą o tym wysokie wartości korelacji.  
+
+Wartości RMSE są wysokie (około 50%  wartości sredniej),  COE i IOA są dalekie od 1. Oznacza to, że regresja liniowa prawdopodobnie pozwoli na redukcję przesunięcia, ale najprawdopodobiej nie bedzie wstanie poprawić rozproszenia wyników, ponieważ zależy ono od innych czynników.   
+
+### Scalanie
+
+
+
+
+
+
+
+
+
+
+
+
