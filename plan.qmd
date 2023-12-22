@@ -4,7 +4,6 @@ author: "Mateusz Rzeszutek"
 date: today
 format:
   html:
-    self-contained: true
     toc: true
     toc-depth: 4
     toc-location: right
@@ -23,6 +22,8 @@ format:
     anchor-sections: true
     link-external-icon: true
     link-external-newwindow: true
+    embed-resources: true
+    self-contained: true
     theme:
         light: cosmo
         dark: darkly
