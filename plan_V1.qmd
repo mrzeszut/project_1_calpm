@@ -339,21 +339,23 @@ to_p %>%
 ## Mapa Myślowa Projektu
 
 Przygotować diagram na zajęciach – praca wspólna interaktywna:
+
   - [W quarto](https://quarto.org/docs/authoring/diagrams.html) 
   - [live editor](https://mermaid.live/edit)
   - [Dokumentacja](https://mermaid.js.org/intro/getting-started.html)
 
 Przykładowe podstawowe problemy: 
-Jak założyć problem ?
-Jak stworzyć rozgałęzienie (branch) z dyskusji 
-Po co są etykiety ?
-Jak korzystać listy zadań ?
-Zarządzenie projektem z perspektywy ww. problemów. 
-Równoległość zadań. 
-Wybór adekwatnych metod eksploracyjnej analizy danych – na podstawie charakteru danych (szereg czasowy – trend, sezonowość, cykliczność)
-Jak rozwiązań problem wykonywania każdorazowego uruchamiania procesu obliczeniowego estymacji modelu w trakcie generowania pliku dla komunikacji za pomocą quarto. 
-Predykatory, czy wszystkie dostępne są odpowiednie z perspektywy zjawiska fizycznego. Czy potrzebne są inne dodatkowego predykatory. Jak wyznaczyć nowe ważne predykatory ?
-Przekształcenia zmiennych – wynikające z zastosowanych metod 
+
+  - Jak założyć problem ?
+  - Jak stworzyć rozgałęzienie (branch) z dyskusji 
+  - Po co są etykiety ?
+  - Jak korzystać listy zadań ?
+  - Zarządzenie projektem z perspektywy ww. problemów. 
+  - Równoległość zadań. 
+  - Wybór adekwatnych metod eksploracyjnej analizy danych – na podstawie charakteru danych (szereg czasowy – trend,    - sezonowość, cykliczność)
+  - Jak rozwiązań problem wykonywania każdorazowego uruchamiania procesu obliczeniowego estymacji modelu w trakcie generowania pliku dla komunikacji za pomocą quarto. 
+  - Predykatory, czy wszystkie dostępne są odpowiednie z perspektywy zjawiska fizycznego. Czy potrzebne są inne dodatkowego predykatory. Jak wyznaczyć nowe ważne predykatory ?
+  - Przekształcenia zmiennych – wynikające z zastosowanych metod 
 
 ## Oddanie projektu
 
@@ -367,8 +369,9 @@ Opis doświadczeń i napotkanych problemów w ramach współpracy grupowej przy 
 Samoocena poszczególnych członków zespołu oraz stopnia zaangażowania w realizację – stosunek powierzanych obowiązku do realnego czasu wykonania.
 
 Udostępnię prowadzącemu wglądu do projektu utworzonego w zdalnym repozytorium w celu przeglądnięcia:
-* problemów, list zadań, etykiet 
-* Historii zatwierdzeń i żądań ściągania
+
+  - problemów, list zadań, etykiet 
+  - Historii zatwierdzeń i żądań ściągania
 
 Przedstawienie w spójny sposób założeń przyjętych w projekcie ML oraz uzyskanych wyników.
 
